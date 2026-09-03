@@ -54,9 +54,44 @@ TP-Link LAN/Wi-Fi        -> printer and client devices
 
 Use a TP-Link **LAN** port for the cable from the mini-PC. Avoid the TP-Link WAN port unless intentionally creating a second NAT layer.
 
+## Access point requirements
+
+Any AP/router used behind this gateway must behave as a **dumb access point / bridge / switch**, not as a second router.
+
+Required AP settings:
+
+```text
+Operating mode: Access Point / Bridge mode, if available
+DHCP server: disabled
+NAT/routing/firewall: disabled, if the UI exposes these in AP mode
+LAN/management IP: static address on 192.168.0.0/24, outside the DHCP pool
+Recommended AP IP: 192.168.0.2
+Gateway/default route: 192.168.0.1
+DNS for AP itself: 192.168.0.1, or external DNS such as 1.1.1.1/8.8.8.8
+Wi-Fi SSID/password: club-defined
+Cable from gateway PC: connect to AP LAN port, not WAN port unless AP mode explicitly bridges the WAN port
+```
+
+Client devices connected through the AP should receive DHCP from the mini-PC gateway, not from the AP:
+
+```text
+Client IP: 192.168.0.50-192.168.0.150
+Client gateway: 192.168.0.1
+Client DNS: whatever the mini-PC DHCP service advertises
+```
+
+Use a management IP outside the DHCP range so it cannot collide with clients. With the default DHCP range of `192.168.0.50`-`192.168.0.150`, good infrastructure addresses are:
+
+| Device | Suggested IP |
+|---|---|
+| Gateway PC LAN | `192.168.0.1` |
+| Primary AP | `192.168.0.2` |
+| Secondary AP, if added | `192.168.0.3` |
+| Printer, if static | `192.168.0.10` |
+
 ## TP-Link TL-WR740N settings
 
-Configure the TP-Link as a dumb AP/switch:
+For the current TP-Link TL-WR740N, configure it as a dumb AP/switch:
 
 ```text
 Mode: Access Point, if available
@@ -73,6 +108,22 @@ If the old firmware has no AP mode:
 2. Set TP-Link LAN IP to `192.168.0.2`.
 3. Connect the mini-PC USB Ethernet to a TP-Link LAN port.
 4. Do not use the TP-Link WAN port.
+5. Leave the TP-Link's routing/NAT features unused.
+
+## AP configuration checklist
+
+Before connecting the AP to the real clubroom network:
+
+- [ ] Factory reset or record the current admin password/config.
+- [ ] Set AP management IP to `192.168.0.2` or another reserved infrastructure IP.
+- [ ] Disable the AP DHCP server.
+- [ ] Enable AP/bridge mode if available.
+- [ ] Configure SSID, WPA2/WPA3 password, and admin password.
+- [ ] Connect gateway LAN/USB Ethernet to an AP LAN port.
+- [ ] Connect a test client to Wi-Fi and confirm it receives an IP from the gateway DHCP range.
+- [ ] Confirm the test client can reach `192.168.0.1`, the AP management IP, and the internet.
+
+Do **not** bridge the AP to the university/uplink side. The AP belongs only on the private LAN side of the mini-PC gateway.
 
 ## Can this be recreated on Fedora Desktop Linux?
 

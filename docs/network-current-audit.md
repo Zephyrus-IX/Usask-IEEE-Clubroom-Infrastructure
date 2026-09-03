@@ -305,3 +305,15 @@ TP-Link TL-WR740N as AP/switch
     ↓
 IEEE clubroom clients and printer on 192.168.0.0/24
 ```
+
+## AP requirement summary
+
+The AP/router behind the gateway is not the router for this design. It must be configured as a dumb AP/bridge/switch:
+
+- AP DHCP server disabled.
+- AP LAN/management IP set statically on the clubroom LAN, normally `192.168.0.2`.
+- AP gateway set to `192.168.0.1`.
+- Cable from the mini-PC LAN/USB Ethernet plugged into an AP LAN port, not the AP WAN port unless the device's AP mode explicitly bridges the WAN port.
+- Wi-Fi clients should receive `192.168.0.x` DHCP leases from the mini-PC gateway, not from the AP.
+
+The old/current TP-Link can be reused if it is already in this dumb-AP shape. If replaced with another consumer router, configure equivalent AP/bridge mode before connecting clients.
