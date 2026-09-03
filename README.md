@@ -1,22 +1,44 @@
-# Usask IEEE Docker Deployment
+# USask IEEE Clubroom Infrastructure
 
-Deployment documentation and Docker Compose stack definitions for the University of Saskatchewan IEEE clubroom server PC.
-
-This repository is intended to be the **Git-backed source of truth** for the clubroom server. Dockhand is installed manually on the server first, then this GitHub repository is connected to Dockhand so stacks can be deployed and updated through Dockhand's Git sync workflow.
+Git-backed source of truth for the University of Saskatchewan IEEE clubroom infrastructure: the Linux gateway/server PC, private clubroom network, access point setup, host rebuild scripts, Docker/Dockhand stacks, backup notes, and operating docs.
 
 > This repo stores deployment definitions and documentation. It should not store live secrets, database data, app uploads, logs, or runtime state.
+
+---
+
+## Scope
+
+This repository covers:
+
+- Linux mini-PC gateway/server setup
+- Clubroom private LAN, DHCP/DNS, AP configuration, and routing docs
+- Host setup scripts and reproducible rebuild notes
+- Docker Compose/Dockhand stack definitions
+- Inventory of hardware, addresses, and services
+- Backup/restore guidance
+- Deployment notes for external app repos such as the canteen/POS app
+
+The custom canteen/POS application source code lives separately at:
+
+```text
+https://github.com/Zephyrus-IX/Usask-IEEE-Canteen
+```
+
+This repo should contain the POS deployment stack and operational notes, not the full app source code, unless we later deliberately choose submodules or vendoring.
 
 ---
 
 ## Expected deployment model
 
 ```text
-1. Install Docker / Docker Compose on the IEEE server PC
-2. Manually install Dockhand on the server PC
-3. Connect this GitHub repo to Dockhand
-4. Dockhand syncs the repo from GitHub
-5. Each stack under stacks/<name>/ is deployed from Dockhand
-6. Future changes are made in Git, pushed to GitHub, then synced/deployed through Dockhand
+1. Install base Linux OS on the IEEE clubroom PC
+2. Configure the gateway/network layer if this PC is routing the clubroom LAN
+3. Install Docker / Docker Compose
+4. Manually install Dockhand
+5. Connect Dockhand to this GitHub repo
+6. Dockhand syncs the repo from GitHub
+7. Each stack under docker-stacks/<name>/ is deployed from Dockhand
+8. Future infrastructure changes are made in Git, pushed to GitHub, then synced/deployed through Dockhand
 ```
 
 Dockhand itself is the bootstrap service. Everything else should be managed through this repository once Dockhand is online.
@@ -25,45 +47,34 @@ Dockhand itself is the bootstrap service. Everything else should be managed thro
 
 ## Repository layout
 
-Planned structure:
-
 ```text
 .
 ├── README.md
 ├── docs/
-│   ├── bootstrap.md              # Manual first-time server/Dockhand setup notes
-│   ├── network-current-audit.md  # Reverse-engineered current Debian gateway setup
-│   ├── network-rebuild-plan.md   # Debian/Fedora rebuild plan for the clubroom network
-│   ├── network.md                # Clubroom network/DNS notes
-│   └── operations.md             # Common admin procedures
-├── scripts/
-│   └── configure-clubroom-gateway.sh # Interactive gateway setup helper
-├── stacks/
+│   ├── backup-and-restore.md
+│   └── network/
+│       ├── current-audit.md
+│       └── rebuild-plan.md
+├── host-config/
+│   └── gateway/
+│       ├── README.md
+│       └── configure-clubroom-gateway.sh
+├── docker-stacks/
+│   ├── akaunting/
+│   │   ├── compose.yaml
+│   │   ├── .env.example
+│   │   └── README.md
 │   ├── caddy/
 │   │   ├── compose.yaml
 │   │   ├── Caddyfile
 │   │   ├── .env.example
 │   │   └── README.md
-│   ├── pihole/
-│   │   ├── compose.yaml
-│   │   ├── .env.example
-│   │   └── README.md
-│   ├── netalertx/
-│   │   ├── compose.yaml
-│   │   ├── .env.example
-│   │   └── README.md
-│   ├── akaunting/
-│   │   ├── compose.yaml
-│   │   ├── .env.example
-│   │   └── README.md
-│   ├── ieee-pos/
-│   │   ├── compose.yaml
-│   │   ├── .env.example
-│   │   └── README.md
-│   └── homepage/
-│       ├── compose.yaml
-│       ├── .env.example
+│   └── canteen/
 │       └── README.md
+├── inventory/
+│   ├── hardware.md
+│   ├── network-addresses.md
+│   └── services.md
 └── .gitignore
 ```
 
@@ -71,7 +82,22 @@ Not every planned stack needs to exist immediately. Add each stack when it is re
 
 ---
 
-## Planned stacks
+## Key docs
+
+| File | Purpose |
+|---|---|
+| `docs/network/current-audit.md` | Reverse-engineered current Debian gateway setup |
+| `docs/network/rebuild-plan.md` | Debian/Fedora rebuild plan for the clubroom network |
+| `host-config/gateway/README.md` | How to run the interactive gateway setup helper |
+| `host-config/gateway/configure-clubroom-gateway.sh` | Interactive host-network setup script |
+| `docs/backup-and-restore.md` | What belongs in Git vs real backups and a restore outline |
+| `inventory/hardware.md` | Physical device inventory |
+| `inventory/network-addresses.md` | IP ranges, static addresses, and local service hostnames |
+| `inventory/services.md` | Intended/deployed service list |
+
+---
+
+## Planned Docker stacks
 
 ### `caddy`
 
@@ -98,9 +124,9 @@ Initial goal:
 
 - DNS filtering
 - Local DNS records for `*.ieee.local` services
-- Optional DHCP later, only if the router/DHCP situation requires it
+- Optional DHCP later, only after the base gateway is proven working
 
-Preferred first deployment mode is **DNS-only**, where the existing router/DHCP server gives clients the Pi-hole address as DNS.
+Do not run host `dnsmasq` DHCP/DNS and Pi-hole DHCP/DNS on the same ports/interfaces at the same time.
 
 ### `netalertx`
 
@@ -113,7 +139,7 @@ Initial goal:
 - Help identify unknown devices
 - Optionally integrate with Pi-hole once DNS is working
 
-NetAlertX may require host networking and extra Linux capabilities for ARP/network scanning. Review its stack README before deployment.
+NetAlertX may require host networking and extra Linux capabilities for ARP/network scanning.
 
 ### `akaunting`
 
@@ -128,9 +154,15 @@ Initial goal:
 
 If Akaunting does not fit the club's needs, the plan is to build a custom finance module into the IEEE app.
 
-### `ieee-pos`
+### `canteen`
 
-Custom IEEE canteen/POS application.
+Deployment wrapper for the separate custom IEEE canteen/POS application.
+
+Source repo:
+
+```text
+https://github.com/Zephyrus-IX/Usask-IEEE-Canteen
+```
 
 Initial goal:
 
@@ -142,21 +174,21 @@ Initial goal:
 - Cash/card payment records
 - Revenue and profit/loss exports
 
-Expected dependent service:
+Preferred long-term deployment is a built container image, for example:
 
-- PostgreSQL database
+```text
+ghcr.io/zephyrus-ix/usask-ieee-canteen:<tag>
+```
 
 ### `homepage` optional
 
-Simple internal dashboard linking to deployed services.
-
-This is optional and should only be added after the core services are working.
+Simple internal dashboard linking to deployed services. Add only after core services are working.
 
 ---
 
 ## Bootstrap process
 
-### 1. Prepare the server PC
+### 1. Prepare the server/gateway PC
 
 Install the base system requirements manually:
 
@@ -164,9 +196,9 @@ Install the base system requirements manually:
 - Docker Compose plugin
 - Git
 - SSH access or local admin access
-- Static/reserved LAN IP for the server PC
+- Static/reserved LAN IP for the server/gateway PC
 
-Record the server IP and network details in `docs/network.md` once finalized.
+If the PC is also acting as the clubroom router, follow `docs/network/rebuild-plan.md` and `host-config/gateway/README.md`.
 
 ### 2. Install Dockhand manually
 
@@ -178,7 +210,7 @@ After Dockhand is reachable:
 2. Connect this GitHub repository.
 3. Configure the repository/branch used for deployment.
 4. Sync the repository.
-5. Deploy stacks from `stacks/<stack-name>/compose.yaml`.
+5. Deploy stacks from `docker-stacks/<stack-name>/compose.yaml`.
 
 ### 3. Deploy base infrastructure stacks
 
@@ -189,7 +221,7 @@ Recommended order:
 2. pihole
 3. netalertx
 4. akaunting
-5. ieee-pos
+5. canteen
 6. homepage, optional
 ```
 
@@ -202,7 +234,7 @@ Reasoning:
 
 ### 4. Configure local DNS
 
-In Pi-hole, create local DNS records for the planned service hostnames and point them to the IEEE server PC's LAN IP.
+In Pi-hole or the active DHCP/DNS system, create local DNS records for the planned service hostnames and point them to the IEEE server/gateway PC's LAN IP.
 
 Example:
 
@@ -215,7 +247,7 @@ dockhand.ieee.local  -> <server-ip>
 home.ieee.local      -> <server-ip>
 ```
 
-Then configure client devices or the router/DHCP server to use Pi-hole as DNS.
+Then configure the active DHCP service to hand out the intended DNS server to clients.
 
 ---
 
@@ -249,29 +281,17 @@ Each stack should include a `.env.example` file documenting required environment
 When Hermes or another AI agent works on this repository, the repo must be cloned and edited only under the Unraid agent workspace share:
 
 ```text
-/unraid/agent-workspace/projects/Usask-IEEE-Docker-Deployment
+/unraid/agent-workspace/projects/Usask-IEEE-Clubroom-Infrastructure
 ```
 
 Do not clone this repository under `/opt/data`, `/tmp`, a home directory, or any other local-only path. The agent-workspace share is the required working location so generated files and edits remain visible in the intended server workspace.
 
 ---
 
-## Network gateway documentation
-
-The current clubroom internet-sharing setup has been reverse-engineered and documented here:
-
-- `docs/network-current-audit.md` — what the existing Debian mini-PC is doing now.
-- `docs/network-rebuild-plan.md` — how to recreate the design on a new Debian or Fedora mini-PC.
-- `scripts/configure-clubroom-gateway.sh` — interactive helper script for configuring a replacement gateway.
-
-The gateway script is not a Docker stack. It modifies host networking and should be reviewed before running on the real clubroom PC.
-
----
-
 ## Operational guidelines
 
-- Treat Git as the source of truth for stack definitions.
-- Prefer one app per stack unless services are tightly dependent.
+- Treat Git as the source of truth for infrastructure definitions.
+- Prefer one app per Docker stack unless services are tightly dependent.
 - Group databases with the app that owns them.
 - Keep Dockhand as the manually bootstrapped control service.
 - Use Caddy for Git-tracked reverse proxy configuration.
@@ -289,11 +309,5 @@ The gateway script is not a Docker stack. It modifies host networking and should
 | `pihole` | `pihole` | Yes | DNS filtering and local DNS records |
 | `netalertx` | `netalertx` | Maybe | Network device discovery/visibility |
 | `akaunting` | `akaunting`, `akaunting-db` | Yes | Club finance/accounting trial |
-| `ieee-pos` | `ieee-pos`, `ieee-pos-db` | Yes | Custom canteen/POS app |
+| `canteen` | canteen app, PostgreSQL | Yes | Custom canteen/POS app deployment |
 | `homepage` | `homepage` | Optional | Internal dashboard |
-
----
-
-## Status
-
-Initial planning repository. Compose stacks and detailed deployment documentation will be added incrementally.

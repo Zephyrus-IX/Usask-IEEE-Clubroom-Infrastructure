@@ -1,4 +1,4 @@
-# Scripts
+# Gateway Host Configuration
 
 ## `configure-clubroom-gateway.sh`
 
@@ -15,7 +15,7 @@ The script is intended for a fresh/dedicated gateway PC running Debian-like or F
 Run from the repo root:
 
 ```bash
-sudo bash scripts/configure-clubroom-gateway.sh
+sudo bash host-config/gateway/configure-clubroom-gateway.sh
 ```
 
 It prompts before applying changes and backs up touched files under:
@@ -36,4 +36,4 @@ It may modify:
 
 It does not intentionally modify university/uplink authentication settings.
 
-Review `docs/network-rebuild-plan.md` before running it on the real clubroom PC.
+Review `docs/network/rebuild-plan.md` before running it on the real clubroom PC.
