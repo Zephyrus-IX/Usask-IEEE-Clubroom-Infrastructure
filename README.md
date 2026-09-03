@@ -32,8 +32,12 @@ Planned structure:
 ├── README.md
 ├── docs/
 │   ├── bootstrap.md              # Manual first-time server/Dockhand setup notes
+│   ├── network-current-audit.md  # Reverse-engineered current Debian gateway setup
+│   ├── network-rebuild-plan.md   # Debian/Fedora rebuild plan for the clubroom network
 │   ├── network.md                # Clubroom network/DNS notes
 │   └── operations.md             # Common admin procedures
+├── scripts/
+│   └── configure-clubroom-gateway.sh # Interactive gateway setup helper
 ├── stacks/
 │   ├── caddy/
 │   │   ├── compose.yaml
@@ -249,6 +253,18 @@ When Hermes or another AI agent works on this repository, the repo must be clone
 ```
 
 Do not clone this repository under `/opt/data`, `/tmp`, a home directory, or any other local-only path. The agent-workspace share is the required working location so generated files and edits remain visible in the intended server workspace.
+
+---
+
+## Network gateway documentation
+
+The current clubroom internet-sharing setup has been reverse-engineered and documented here:
+
+- `docs/network-current-audit.md` — what the existing Debian mini-PC is doing now.
+- `docs/network-rebuild-plan.md` — how to recreate the design on a new Debian or Fedora mini-PC.
+- `scripts/configure-clubroom-gateway.sh` — interactive helper script for configuring a replacement gateway.
+
+The gateway script is not a Docker stack. It modifies host networking and should be reviewed before running on the real clubroom PC.
 
 ---
 
