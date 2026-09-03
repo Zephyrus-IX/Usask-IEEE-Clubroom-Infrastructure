@@ -1,0 +1,31 @@
+{
+	# Internal-only clubroom deployment. We are using plain HTTP initially
+	# because *.ieee.local is not publicly resolvable for Let's Encrypt.
+	auto_https off
+}
+
+finance.ieee.local {
+	reverse_proxy host.docker.internal:8081
+}
+
+# Uncomment these routes as the matching stacks are deployed.
+
+# pihole.ieee.local {
+# 	reverse_proxy host.docker.internal:8082
+# }
+
+# network.ieee.local {
+# 	reverse_proxy host.docker.internal:20211
+# }
+
+# dockhand.ieee.local {
+# 	reverse_proxy host.docker.internal:3000
+# }
+
+# pos.ieee.local {
+# 	reverse_proxy host.docker.internal:8000
+# }
+
+# home.ieee.local {
+# 	reverse_proxy host.docker.internal:8083
+# }
