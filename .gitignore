@@ -1,0 +1,17 @@
+# Live environment/secrets
+.env
+.env.*
+!.env.example
+
+# Runtime data and local state
+data/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# OS/editor noise
+.DS_Store
+.vscode/
+.idea/

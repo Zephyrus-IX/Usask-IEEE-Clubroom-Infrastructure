@@ -1,0 +1,54 @@
+services:
+  akaunting:
+    image: docker.io/akaunting/akaunting:latest
+    container_name: akaunting
+    restart: unless-stopped
+    depends_on:
+      akaunting-db:
+        condition: service_healthy
+    ports:
+      - "${AKAUNTING_HTTP_PORT:-8081}:80"
+    volumes:
+      - akaunting-data:/var/www/html
+    environment:
+      # Set this to true only for the first deployment. After the web setup
+      # wizard is complete, set it to false/remove it and redeploy.
+      AKAUNTING_SETUP: "${AKAUNTING_SETUP:-false}"
+
+      APP_URL: "${APP_URL:-http://finance.ieee.local}"
+      LOCALE: "${LOCALE:-en-US}"
+
+      DB_HOST: "akaunting-db"
+      DB_PORT: "3306"
+      DB_NAME: "${MYSQL_DATABASE:-akaunting}"
+      DB_USERNAME: "${MYSQL_USER:-akaunting}"
+      DB_PASSWORD: "${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in the Dockhand stack environment}"
+      DB_PREFIX: "${DB_PREFIX:?Set DB_PREFIX in the Dockhand stack environment}"
+
+      # Used only while AKAUNTING_SETUP=true.
+      COMPANY_NAME: "${COMPANY_NAME:-USask IEEE Student Branch}"
+      COMPANY_EMAIL: "${COMPANY_EMAIL:?Set COMPANY_EMAIL in the Dockhand stack environment}"
+      ADMIN_EMAIL: "${ADMIN_EMAIL:?Set ADMIN_EMAIL in the Dockhand stack environment}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in the Dockhand stack environment}"
+
+  akaunting-db:
+    image: docker.io/library/mariadb:11
+    container_name: akaunting-db
+    restart: unless-stopped
+    volumes:
+      - akaunting-db:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: "${MYSQL_DATABASE:-akaunting}"
+      MYSQL_USER: "${MYSQL_USER:-akaunting}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in the Dockhand stack environment}"
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  akaunting-data:
+  akaunting-db:
