@@ -158,11 +158,21 @@ For Fedora Desktop, the simplest reliable approach is to let NetworkManager own 
 
 This avoids mixing NetworkManager and systemd-networkd on Fedora Desktop. The install script in this repo defaults to NetworkManager-based LAN setup for cross-distro compatibility.
 
-## Firewall note on Fedora
+## Firewall and Docker forwarding notes on Fedora
 
-Fedora often uses `firewalld` by default. The provided script uses its own nftables tables and prompts before touching firewalld. Do not blindly disable firewalld on a machine that already has other firewall policy.
+Fedora often uses `firewalld` by default. During the live Fedora gateway test, active firewalld blocked LAN-side DHCP; clients sat at "setting network address" until firewalld was stopped. For a dedicated clubroom gateway PC, the script now prompts to disable firewalld and defaults to **yes** when firewalld is installed.
 
-If firewalld remains active, verify it does not block forwarding/NAT. For a clean dedicated gateway appliance, using a documented nftables ruleset/service is easier to reproduce than ad-hoc firewalld state.
+Docker can also affect forwarding. Docker commonly creates iptables/nftables compatibility chains and may set the iptables `FORWARD` policy to `DROP`. In the live test, DHCP worked after disabling firewalld, but Wi-Fi clients still had no internet until equivalent iptables-nft forwarding rules were inserted:
+
+```bash
+iptables -I FORWARD 1 -i <LAN_IFACE> -o <WAN_IFACE> -j ACCEPT
+iptables -I FORWARD 1 -i <WAN_IFACE> -o <LAN_IFACE> -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+iptables -t nat -A POSTROUTING -o <WAN_IFACE> -j MASQUERADE
+```
+
+The gateway script now prompts to install these Docker-compatible iptables forwarding/NAT rules and defaults to **yes**. It also keeps the native nftables rules. This makes the gateway work even when Docker's firewall compatibility layer is present.
+
+For a clean dedicated gateway appliance, using the script-managed nftables/iptables rules with firewalld disabled is easier to reproduce than ad-hoc firewalld state. If firewalld remains active, verify it does not block DHCP, forwarding, or NAT.
 
 ## Gateway appliance power settings
 
@@ -283,6 +293,8 @@ table ip ieee_gateway_nat {
   }
 }
 ```
+
+When Docker is installed, also apply the Docker-compatible iptables-nft rules described in the Fedora firewall section so Docker's `FORWARD` policy does not block LAN clients.
 
 ### Phase 7: Optional QoS
 

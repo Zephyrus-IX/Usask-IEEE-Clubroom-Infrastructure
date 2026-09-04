@@ -15,6 +15,8 @@ ENABLE_QOS_DEFAULT="no"
 QOS_IPS_DEFAULT="192.168.0.111 192.168.0.128"
 ENABLE_APPLIANCE_POWER_DEFAULT="yes"
 DISABLE_USB_AUTOSUSPEND_DEFAULT="yes"
+DISABLE_FIREWALLD_DEFAULT="yes"
+ENABLE_IPTABLES_FORWARDING_DEFAULT="yes"
 BACKUP_DIR="/root/ieee-gateway-backup-$(date +%Y%m%d-%H%M%S)"
 
 log() { printf '\n[%s] %s\n' "INFO" "$*"; }
@@ -180,6 +182,7 @@ write_gateway_apply_script() {
   local lan_iface="$2"
   local enable_qos="$3"
   local qos_ips="$4"
+  local enable_iptables_forwarding="$5"
 
   backup_file /usr/local/sbin/ieee-gateway-apply.sh
   cat > /usr/local/sbin/ieee-gateway-apply.sh <<EOF
@@ -190,6 +193,7 @@ WAN_IFACE="${wan_iface}"
 LAN_IFACE="${lan_iface}"
 ENABLE_QOS="${enable_qos}"
 QOS_IPS="${qos_ips}"
+ENABLE_IPTABLES_FORWARDING="${enable_iptables_forwarding}"
 
 nft delete table inet ieee_gateway 2>/dev/null || true
 nft delete table ip ieee_gateway_nat 2>/dev/null || true
@@ -203,6 +207,23 @@ nft add rule inet ieee_gateway forward iifname "\$LAN_IFACE" oifname "\$WAN_IFAC
 nft add table ip ieee_gateway_nat
 nft 'add chain ip ieee_gateway_nat postrouting { type nat hook postrouting priority srcnat; policy accept; }'
 nft add rule ip ieee_gateway_nat postrouting oifname "\$WAN_IFACE" masquerade
+
+if [[ "\$ENABLE_IPTABLES_FORWARDING" == "yes" ]] && command -v iptables >/dev/null 2>&1; then
+  # Docker commonly sets the iptables FORWARD chain policy to DROP. Separate
+  # nftables accept rules may not be enough because another base chain can still
+  # drop the packet later. Add equivalent iptables-nft rules at the top of
+  # FORWARD so LAN clients can traverse the Docker-managed firewall path.
+  while iptables -D FORWARD -i "\$LAN_IFACE" -o "\$WAN_IFACE" -j ACCEPT 2>/dev/null; do :; done
+  while iptables -D FORWARD -i "\$WAN_IFACE" -o "\$LAN_IFACE" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; do :; done
+
+  iptables -I FORWARD 1 -i "\$LAN_IFACE" -o "\$WAN_IFACE" -j ACCEPT
+  iptables -I FORWARD 1 -i "\$WAN_IFACE" -o "\$LAN_IFACE" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+  iptables -t nat -C POSTROUTING -o "\$WAN_IFACE" -j MASQUERADE 2>/dev/null || \
+    iptables -t nat -A POSTROUTING -o "\$WAN_IFACE" -j MASQUERADE
+elif [[ "\$ENABLE_IPTABLES_FORWARDING" == "yes" ]]; then
+  echo "WARN: iptables not found; Docker-compatible FORWARD rules were not installed" >&2
+fi
 
 if [[ "\$ENABLE_QOS" == "yes" ]]; then
   nft add table ip ieee_gateway_mangle
@@ -266,6 +287,23 @@ EOF
   fi
 }
 
+
+configure_firewalld() {
+  local disable_firewalld="$1"
+
+  if ! systemctl list-unit-files firewalld.service --no-legend 2>/dev/null | grep -q '^firewalld.service'; then
+    return 0
+  fi
+
+  if [[ "$disable_firewalld" == "yes" ]]; then
+    log "Disabling firewalld for dedicated gateway mode"
+    log "Fedora firewalld can block LAN DHCP and forwarded/NAT traffic. This gateway uses dedicated nftables/iptables rules instead."
+    systemctl disable --now firewalld || warn "Could not disable firewalld; verify DHCP/forwarding manually."
+  elif systemctl is-active --quiet firewalld 2>/dev/null; then
+    warn "firewalld remains active. It may block DHCP or forwarding/NAT for LAN clients."
+  fi
+}
+
 configure_usb_autosuspend() {
   log "Disabling USB autosuspend for reliability"
   log "This helps prevent USB Ethernet adapters from being power-managed off while acting as the LAN interface."
@@ -295,6 +333,8 @@ It may change:
   - /usr/local/sbin/ieee-gateway-apply.sh
   - /etc/systemd/system/ieee-gateway.service
   - active nftables rules in tables named ieee_gateway*
+  - optional firewalld disablement for dedicated gateway mode
+  - optional Docker-compatible iptables forwarding/NAT rules
   - optional appliance power settings to prevent sleep/hibernate
   - optional udev rule to prevent USB Ethernet autosuspend
 
@@ -309,10 +349,9 @@ EOF
     install_packages
   fi
 
-  if systemctl is-active --quiet firewalld 2>/dev/null; then
-    warn "firewalld is active. This script adds dedicated nftables tables but does not rewrite existing firewalld policy."
-    warn "On Fedora, firewalld policy may still affect forwarding. Verify client internet after setup."
-    confirm "Continue while firewalld is active?" "no" || fatal "Aborted. Review firewalld policy first."
+  if systemctl list-unit-files firewalld.service --no-legend 2>/dev/null | grep -q '^firewalld.service'; then
+    warn "Fedora firewalld can block LAN DHCP and forwarded/NAT client traffic on this gateway."
+    warn "On a dedicated clubroom gateway PC, disabling firewalld and using this script's gateway rules is the simpler tested setup."
   fi
 
   show_detected_state
@@ -333,6 +372,18 @@ EOF
   if confirm "Enable legacy QoS priority for selected client IPs?" "$ENABLE_QOS_DEFAULT"; then
     ENABLE_QOS="yes"
     QOS_IPS="$(ask "QoS priority client IPs, space-separated" "$QOS_IPS_DEFAULT")"
+  fi
+
+  DISABLE_FIREWALLD="no"
+  if systemctl list-unit-files firewalld.service --no-legend 2>/dev/null | grep -q '^firewalld.service'; then
+    if confirm "Disable firewalld for dedicated gateway mode?" "$DISABLE_FIREWALLD_DEFAULT"; then
+      DISABLE_FIREWALLD="yes"
+    fi
+  fi
+
+  ENABLE_IPTABLES_FORWARDING="no"
+  if confirm "Install Docker-compatible iptables forwarding/NAT rules?" "$ENABLE_IPTABLES_FORWARDING_DEFAULT"; then
+    ENABLE_IPTABLES_FORWARDING="yes"
   fi
 
   cat <<'EOF'
@@ -365,6 +416,8 @@ Planned configuration:
   DHCP DNS servers:    $DNS_SERVERS
   QoS enabled:         $ENABLE_QOS
   QoS IPs:             $QOS_IPS
+  Disable firewalld:   $DISABLE_FIREWALLD
+  Docker/iptables fix: $ENABLE_IPTABLES_FORWARDING
   Prevent sleep:       $ENABLE_APPLIANCE_POWER
   USB autosuspend off: $DISABLE_USB_AUTOSUSPEND
   Backup directory:    $BACKUP_DIR
@@ -376,9 +429,10 @@ EOF
 
   systemctl enable --now NetworkManager
   write_nm_lan_connection "$LAN_IFACE" "$LAN_CIDR"
+  configure_firewalld "$DISABLE_FIREWALLD"
   write_dnsmasq_config "$WAN_IFACE" "$LAN_IFACE" "$DHCP_START" "$DHCP_END" "$DHCP_LEASE" "$LAN_IP" "$DNS_SERVERS"
   write_sysctl
-  write_gateway_apply_script "$WAN_IFACE" "$LAN_IFACE" "$ENABLE_QOS" "$QOS_IPS"
+  write_gateway_apply_script "$WAN_IFACE" "$LAN_IFACE" "$ENABLE_QOS" "$QOS_IPS" "$ENABLE_IPTABLES_FORWARDING"
   write_systemd_service
   if [[ "$ENABLE_APPLIANCE_POWER" == "yes" ]]; then
     configure_appliance_power
@@ -403,7 +457,13 @@ EOF
   echo
   systemctl --no-pager status ieee-gateway || true
   echo
-  nft list ruleset | sed -n '/ieee_gateway/,+60p' || true
+  nft list ruleset | sed -n '/ieee_gateway/,+80p' || true
+  echo
+  iptables -S FORWARD 2>/dev/null || true
+  echo
+  iptables -t nat -S POSTROUTING 2>/dev/null || true
+  echo
+  systemctl is-active firewalld 2>/dev/null || true
   echo
   systemctl status sleep.target suspend.target hibernate.target hybrid-sleep.target --no-pager || true
 
