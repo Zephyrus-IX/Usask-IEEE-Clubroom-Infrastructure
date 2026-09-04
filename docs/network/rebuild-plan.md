@@ -149,6 +149,7 @@ The main difference is configuration style:
 | Firewall | iptables-nft restored by custom service | Native nftables/custom service is cleaner; firewalld may need coordination |
 | DHCP/DNS | dnsmasq system service | dnsmasq system service |
 | Containers | Docker/Dockhand | Docker/Dockhand works if installed |
+| Power management | Sleep masked on old setup | Sleep/hibernate should be masked for gateway appliance use |
 
 For Fedora Desktop, the simplest reliable approach is to let NetworkManager own both physical NICs:
 
@@ -162,6 +163,32 @@ This avoids mixing NetworkManager and systemd-networkd on Fedora Desktop. The in
 Fedora often uses `firewalld` by default. The provided script uses its own nftables tables and prompts before touching firewalld. Do not blindly disable firewalld on a machine that already has other firewall policy.
 
 If firewalld remains active, verify it does not block forwarding/NAT. For a clean dedicated gateway appliance, using a documented nftables ruleset/service is easier to reproduce than ad-hoc firewalld state.
+
+## Gateway appliance power settings
+
+A clubroom gateway PC must stay awake even when no user is logged in. If it sleeps or hibernates, DHCP, DNS, NAT, and internet access for the whole room stop.
+
+The gateway script defaults to:
+
+```text
+Mask systemd sleep targets: yes
+Write a logind drop-in with IdleAction=ignore: yes
+Disable USB autosuspend: yes
+```
+
+This recreates the old reliability setting from Leif's notes:
+
+```bash
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+```
+
+It also adds a udev rule so USB devices, including the USB Ethernet LAN adapter, are kept out of autosuspend:
+
+```text
+/etc/udev/rules.d/99-ieee-no-usb-autosuspend.rules
+```
+
+These settings are recommended for a dedicated gateway/server PC. Do not enable them on a normal laptop unless you deliberately want to prevent sleep.
 
 ## Rebuild phases
 

@@ -13,6 +13,8 @@ DHCP_LEASE_DEFAULT="12h"
 DNS_SERVERS_DEFAULT="8.8.8.8,1.1.1.1"
 ENABLE_QOS_DEFAULT="no"
 QOS_IPS_DEFAULT="192.168.0.111 192.168.0.128"
+ENABLE_APPLIANCE_POWER_DEFAULT="yes"
+DISABLE_USB_AUTOSUSPEND_DEFAULT="yes"
 BACKUP_DIR="/root/ieee-gateway-backup-$(date +%Y%m%d-%H%M%S)"
 
 log() { printf '\n[%s] %s\n' "INFO" "$*"; }
@@ -240,6 +242,45 @@ EOF
   systemctl daemon-reload
 }
 
+configure_appliance_power() {
+  log "Enabling gateway appliance power settings"
+  log "Masking sleep/hibernate targets so the clubroom network stays online when no user is logged in."
+
+  systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+
+  backup_file /etc/systemd/logind.conf.d/99-ieee-gateway-appliance.conf
+  mkdir -p /etc/systemd/logind.conf.d
+  cat > /etc/systemd/logind.conf.d/99-ieee-gateway-appliance.conf <<'EOF'
+# IEEE clubroom gateway appliance mode.
+# Keep the PC awake so DHCP/NAT/Wi-Fi clients do not lose network access.
+[Login]
+HandleSuspendKey=ignore
+HandleHibernateKey=ignore
+HandleLidSwitch=ignore
+HandleLidSwitchDocked=ignore
+IdleAction=ignore
+EOF
+
+  if systemctl is-active --quiet systemd-logind 2>/dev/null; then
+    systemctl try-reload-or-restart systemd-logind || warn "Could not reload/restart systemd-logind; reboot to apply logind idle settings."
+  fi
+}
+
+configure_usb_autosuspend() {
+  log "Disabling USB autosuspend for reliability"
+  log "This helps prevent USB Ethernet adapters from being power-managed off while acting as the LAN interface."
+
+  backup_file /etc/udev/rules.d/99-ieee-no-usb-autosuspend.rules
+  mkdir -p /etc/udev/rules.d
+  cat > /etc/udev/rules.d/99-ieee-no-usb-autosuspend.rules <<'EOF'
+# Keep USB devices, including USB Ethernet adapters, out of autosuspend.
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="on"
+EOF
+
+  udevadm control --reload || warn "Could not reload udev rules"
+  udevadm trigger --subsystem-match=usb || warn "Could not immediately apply udev rule; reboot or replug USB Ethernet to apply."
+}
+
 main() {
   require_root
 
@@ -254,6 +295,8 @@ It may change:
   - /usr/local/sbin/ieee-gateway-apply.sh
   - /etc/systemd/system/ieee-gateway.service
   - active nftables rules in tables named ieee_gateway*
+  - optional appliance power settings to prevent sleep/hibernate
+  - optional udev rule to prevent USB Ethernet autosuspend
 
 It will not intentionally modify university/uplink authentication settings.
 EOF
@@ -292,6 +335,25 @@ EOF
     QOS_IPS="$(ask "QoS priority client IPs, space-separated" "$QOS_IPS_DEFAULT")"
   fi
 
+  cat <<'EOF'
+
+Gateway appliance reliability settings:
+  This PC is network infrastructure. If it sleeps or hibernates, the clubroom
+  loses DHCP, NAT, DNS, and internet access. The defaults therefore prevent
+  system sleep/hibernate and disable USB autosuspend so the USB Ethernet LAN
+  adapter is less likely to power down.
+EOF
+
+  ENABLE_APPLIANCE_POWER="no"
+  if confirm "Enable gateway appliance power settings to prevent sleep/hibernate?" "$ENABLE_APPLIANCE_POWER_DEFAULT"; then
+    ENABLE_APPLIANCE_POWER="yes"
+  fi
+
+  DISABLE_USB_AUTOSUSPEND="no"
+  if confirm "Disable USB autosuspend for USB Ethernet reliability?" "$DISABLE_USB_AUTOSUSPEND_DEFAULT"; then
+    DISABLE_USB_AUTOSUSPEND="yes"
+  fi
+
   cat <<EOF
 
 Planned configuration:
@@ -303,6 +365,8 @@ Planned configuration:
   DHCP DNS servers:    $DNS_SERVERS
   QoS enabled:         $ENABLE_QOS
   QoS IPs:             $QOS_IPS
+  Prevent sleep:       $ENABLE_APPLIANCE_POWER
+  USB autosuspend off: $DISABLE_USB_AUTOSUSPEND
   Backup directory:    $BACKUP_DIR
 EOF
 
@@ -316,6 +380,12 @@ EOF
   write_sysctl
   write_gateway_apply_script "$WAN_IFACE" "$LAN_IFACE" "$ENABLE_QOS" "$QOS_IPS"
   write_systemd_service
+  if [[ "$ENABLE_APPLIANCE_POWER" == "yes" ]]; then
+    configure_appliance_power
+  fi
+  if [[ "$DISABLE_USB_AUTOSUSPEND" == "yes" ]]; then
+    configure_usb_autosuspend
+  fi
 
   systemctl enable --now dnsmasq
   systemctl restart dnsmasq
@@ -334,6 +404,8 @@ EOF
   systemctl --no-pager status ieee-gateway || true
   echo
   nft list ruleset | sed -n '/ieee_gateway/,+60p' || true
+  echo
+  systemctl status sleep.target suspend.target hibernate.target hybrid-sleep.target --no-pager || true
 
   cat <<EOF
 
