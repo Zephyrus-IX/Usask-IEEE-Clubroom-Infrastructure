@@ -1,7 +1,10 @@
 # Live environment/secrets
+# Root/local env files stay ignored. Stack-level docker-stacks/**/.env files are
+# committed as Dockhand templates with placeholder values because Dockhand reads
+# .env directly and lets operators apply local overrides.
 .env
 .env.*
-!.env.example
+!docker-stacks/**/.env
 
 # Runtime data and local state
 data/

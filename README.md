@@ -62,12 +62,12 @@ Dockhand itself is the bootstrap service. Everything else should be managed thro
 ├── docker-stacks/
 │   ├── akaunting/
 │   │   ├── compose.yaml
-│   │   ├── .env.example
+│   │   ├── .env
 │   │   └── README.md
 │   ├── caddy/
 │   │   ├── compose.yaml
 │   │   ├── Caddyfile
-│   │   ├── .env.example
+│   │   ├── .env
 │   │   └── README.md
 │   └── canteen/
 │       └── README.md
@@ -256,14 +256,14 @@ Then configure the active DHCP service to hand out the intended DNS server to cl
 Commit:
 
 - `compose.yaml`
-- `.env.example`
+- `.env` stack templates for Dockhand, with placeholder/default values only
 - stack `README.md` files
 - static config files that do not contain secrets
 - documentation
 
 Do **not** commit:
 
-- live `.env` files
+- real passwords, tokens, or site-local secret values inside committed `.env` templates
 - passwords
 - API keys
 - database files
@@ -272,7 +272,7 @@ Do **not** commit:
 - logs
 - generated caches
 
-Each stack should include a `.env.example` file documenting required environment variables. Live `.env` files should be created on the server/Dockhand side.
+Each stack should include a committed `.env` file because Dockhand reads `.env` directly and supports local changes/overrides from that filename. Treat these committed `.env` files as templates: defaults and placeholders are allowed, but real passwords/tokens/secrets must be set only through Dockhand/local overrides and must not be committed.
 
 ---
 

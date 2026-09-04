@@ -5,7 +5,7 @@ This repository stores infrastructure definitions and documentation, not runtime
 ## Commit to Git
 
 - Docker Compose files
-- `.env.example` files
+- committed stack `.env` templates containing only defaults/placeholders
 - static non-secret config files
 - host setup scripts
 - network/AP/DNS documentation
@@ -13,7 +13,7 @@ This repository stores infrastructure definitions and documentation, not runtime
 
 ## Do not commit to Git
 
-- live `.env` files
+- local Dockhand `.env` overrides or real secret values
 - passwords, API tokens, private keys
 - database files
 - uploaded receipts/documents

@@ -25,6 +25,6 @@ A submodule pins the app source at an exact commit, but it makes Dockhand/Git wo
 ## Files to add when ready
 
 - `compose.yaml`
-- `.env.example`
+- `.env` Dockhand template with placeholders/defaults only
 - backup/restore notes for database and uploaded files
 - first-deploy instructions for migrations/admin account creation

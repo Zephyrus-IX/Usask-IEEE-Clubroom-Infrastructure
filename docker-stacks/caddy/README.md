@@ -75,7 +75,7 @@ When a new stack is deployed:
 
 ## Environment
 
-See `.env.example` for configurable host ports.
+See `.env` for configurable host ports. The committed `.env` is a Dockhand template; use Dockhand/local overrides for site-specific changes.
 
 Default ports:
 

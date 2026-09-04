@@ -43,7 +43,7 @@ The host port can be changed with `AKAUNTING_HTTP_PORT`.
 
 Akaunting has a special first-run setup mode.
 
-1. Create stack environment values in Dockhand using `.env.example` as the template.
+1. Review the committed `.env` Dockhand template and set local Dockhand overrides for passwords/site-specific values before deployment.
 2. Set:
 
    ```env
