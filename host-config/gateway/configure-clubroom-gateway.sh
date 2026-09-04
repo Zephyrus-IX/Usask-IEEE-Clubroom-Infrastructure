@@ -95,13 +95,104 @@ show_detected_state() {
   nmcli device status || true
 }
 
+default_wan_interface() {
+  ip route show default 2>/dev/null | awk '/^default / { for (i=1; i<=NF; i++) if ($i == "dev") { print $(i+1); exit } }'
+}
+
+interface_ipv4_summary() {
+  local iface="$1"
+  ip -o -4 addr show dev "$iface" 2>/dev/null | awk '{print $4}' | paste -sd, -
+}
+
+interface_state_summary() {
+  local iface="$1"
+  ip -br link show dev "$iface" 2>/dev/null | awk '{print $2}'
+}
+
+suggest_lan_interface() {
+  local wan_iface="${1:-}"
+  local iface state ipv4
+
+  # Prefer an already-configured LAN interface if re-running the script.
+  for iface in /sys/class/net/*; do
+    [[ -d "$iface" ]] || continue
+    iface="$(basename "$iface")"
+    [[ "$iface" == "lo" || "$iface" == "$wan_iface" ]] && continue
+    ipv4="$(interface_ipv4_summary "$iface")"
+    if [[ "$ipv4" == *"$LAN_CIDR_DEFAULT"* ]]; then
+      printf '%s' "$iface"
+      return 0
+    fi
+  done
+
+  # Otherwise prefer a connected non-WAN wired/USB NIC and ignore common virtual devices.
+  for iface in /sys/class/net/*; do
+    [[ -d "$iface" ]] || continue
+    iface="$(basename "$iface")"
+    [[ "$iface" == "lo" || "$iface" == "$wan_iface" ]] && continue
+    [[ "$iface" == docker* || "$iface" == br-* || "$iface" == veth* || "$iface" == virbr* ]] && continue
+    [[ "$iface" == tunl* || "$iface" == gre* || "$iface" == gretap* || "$iface" == sit* || "$iface" == ip6tnl* || "$iface" == ifb* ]] && continue
+    [[ "$iface" == wl* || "$iface" == wwan* ]] && continue
+    state="$(interface_state_summary "$iface")"
+    if [[ "$state" == "UP" || "$state" == "UNKNOWN" ]]; then
+      printf '%s' "$iface"
+      return 0
+    fi
+  done
+
+  return 0
+}
+
 select_interface() {
   local role="$1"
-  local value
-  value="$(ask "Enter ${role} interface name")"
-  [[ -n "$value" ]] || fatal "${role} interface cannot be empty"
-  [[ -d "/sys/class/net/$value" ]] || fatal "Interface $value does not exist"
-  printf '%s' "$value"
+  local default="${2:-}"
+  local iface value idx selected
+  local interfaces=()
+
+  while IFS= read -r iface; do
+    [[ -n "$iface" ]] && interfaces+=("$iface")
+  done < <(find /sys/class/net -mindepth 1 -maxdepth 1 -type l -printf '%f\n' | sort)
+
+  [[ "${#interfaces[@]}" -gt 0 ]] || fatal "No network interfaces found"
+
+  printf '\n%s interfaces:\n' "$role" >&2
+  for idx in "${!interfaces[@]}"; do
+    iface="${interfaces[$idx]}"
+    printf '  %2d) %-16s state=%-10s ipv4=%s\n' \
+      "$((idx + 1))" \
+      "$iface" \
+      "$(interface_state_summary "$iface")" \
+      "$(interface_ipv4_summary "$iface")" >&2
+  done
+
+  while true; do
+    if [[ -n "$default" && -d "/sys/class/net/$default" ]]; then
+      read -r -p "Select ${role} interface by number or name [$default]: " value
+      value="${value:-$default}"
+    else
+      read -r -p "Select ${role} interface by number or name: " value
+    fi
+
+    [[ -n "$value" ]] || { warn "${role} interface cannot be empty."; continue; }
+
+    if [[ "$value" =~ ^[0-9]+$ ]]; then
+      if (( value >= 1 && value <= ${#interfaces[@]} )); then
+        selected="${interfaces[$((value - 1))]}"
+      else
+        warn "Selection $value is out of range."
+        continue
+      fi
+    else
+      selected="$value"
+    fi
+
+    if [[ -d "/sys/class/net/$selected" ]]; then
+      printf '%s' "$selected"
+      return 0
+    fi
+
+    warn "Interface $selected does not exist. Select one of the listed interfaces."
+  done
 }
 
 write_nm_lan_connection() {
@@ -356,8 +447,12 @@ EOF
 
   show_detected_state
 
-  WAN_IFACE="$(select_interface "WAN/university uplink")"
-  LAN_IFACE="$(select_interface "LAN/USB Ethernet downstream")"
+  WAN_DEFAULT="$(default_wan_interface)"
+  LAN_DEFAULT="$(suggest_lan_interface "$WAN_DEFAULT")"
+
+  WAN_IFACE="$(select_interface "WAN/university uplink" "$WAN_DEFAULT")"
+  LAN_DEFAULT="$(suggest_lan_interface "$WAN_IFACE")"
+  LAN_IFACE="$(select_interface "LAN/USB Ethernet downstream" "$LAN_DEFAULT")"
   [[ "$WAN_IFACE" != "$LAN_IFACE" ]] || fatal "WAN and LAN interfaces must be different"
 
   LAN_CIDR="$(ask "LAN CIDR/address" "$LAN_CIDR_DEFAULT")"

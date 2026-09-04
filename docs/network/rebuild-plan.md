@@ -158,6 +158,8 @@ For Fedora Desktop, the simplest reliable approach is to let NetworkManager own 
 
 This avoids mixing NetworkManager and systemd-networkd on Fedora Desktop. The install script in this repo defaults to NetworkManager-based LAN setup for cross-distro compatibility.
 
+The script lists detected interfaces with their state and IPv4 addresses, then lets the operator select WAN/LAN interfaces by number or by exact interface name. It suggests the WAN from the system default route and suggests the LAN from an existing `192.168.0.1/24` interface or another connected non-WAN wired/USB interface.
+
 ## Firewall and Docker forwarding notes on Fedora
 
 Fedora often uses `firewalld` by default. During the live Fedora gateway test, active firewalld blocked LAN-side DHCP; clients sat at "setting network address" until firewalld was stopped. For a dedicated clubroom gateway PC, the script now prompts to disable firewalld and defaults to **yes** when firewalld is installed.

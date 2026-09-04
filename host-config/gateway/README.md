@@ -76,6 +76,6 @@ It is okay to pull a newer version of this repo and run the script again to re-a
 - it removes/reinserts the exact Docker-compatible iptables FORWARD rules it owns so they stay at the top of the chain;
 - it backs up touched files under a new `/root/ieee-gateway-backup-<timestamp>/` directory each run.
 
-When re-running on the already-working gateway, use the same WAN/LAN interface names and same IP/DHCP values unless you deliberately want to change them. Re-running may briefly interrupt clients while dnsmasq and the gateway service restart.
+When re-running on the already-working gateway, select the same WAN/LAN interfaces and same IP/DHCP values unless you deliberately want to change them. The script lists detected interfaces and lets you pick by number or type the interface name directly. It suggests the WAN from the default route and suggests the LAN from an existing `192.168.0.1/24` interface or another connected non-WAN wired/USB interface. Re-running may briefly interrupt clients while dnsmasq and the gateway service restart.
 
 Review `docs/network/rebuild-plan.md` before running it on the real clubroom PC.
