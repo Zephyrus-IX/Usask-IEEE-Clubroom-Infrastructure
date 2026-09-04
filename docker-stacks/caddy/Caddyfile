@@ -8,24 +8,22 @@ finance.ieee.local {
 	reverse_proxy host.docker.internal:8081
 }
 
-# Uncomment these routes as the matching stacks are deployed.
+pihole.ieee.local {
+	reverse_proxy host.docker.internal:8082
+}
 
-# pihole.ieee.local {
-# 	reverse_proxy host.docker.internal:8082
-# }
+network.ieee.local {
+	reverse_proxy host.docker.internal:20211
+}
 
-# network.ieee.local {
-# 	reverse_proxy host.docker.internal:20211
-# }
+dockhand.ieee.local {
+	reverse_proxy host.docker.internal:3000
+}
 
-# dockhand.ieee.local {
-# 	reverse_proxy host.docker.internal:3000
-# }
+pos.ieee.local {
+	reverse_proxy host.docker.internal:8000
+}
 
-# pos.ieee.local {
-# 	reverse_proxy host.docker.internal:8000
-# }
-
-# home.ieee.local {
-# 	reverse_proxy host.docker.internal:8083
-# }
+home.ieee.local {
+	reverse_proxy host.docker.internal:8083
+}

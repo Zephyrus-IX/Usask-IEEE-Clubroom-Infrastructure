@@ -1,0 +1,31 @@
+services:
+  pihole:
+    image: docker.io/pihole/pihole:latest
+    container_name: pihole
+    hostname: pihole
+    restart: unless-stopped
+    ports:
+      # Web UI is proxied by Caddy at http://pihole.ieee.local.
+      - "${PIHOLE_WEB_PORT:-8082}:80/tcp"
+      # Do not bind host port 53 yet because the gateway uses dnsmasq for DHCP/DNS.
+      # Use 5353 during the trial, then migrate deliberately if Pi-hole becomes LAN DNS.
+      - "${PIHOLE_DNS_PORT:-5353}:53/tcp"
+      - "${PIHOLE_DNS_PORT:-5353}:53/udp"
+    environment:
+      TZ: "${TZ:-America/Regina}"
+      FTLCONF_webserver_api_password: "${PIHOLE_WEB_PASSWORD:-change_me_before_deploying}"
+      FTLCONF_dns_upstreams: "${PIHOLE_DNS_UPSTREAMS:-8.8.8.8;1.1.1.1}"
+      FTLCONF_dns_listeningMode: "${PIHOLE_DNS_LISTENING_MODE:-all}"
+    volumes:
+      - pihole-etc:/etc/pihole
+      - pihole-dnsmasq:/etc/dnsmasq.d
+    cap_add:
+      - NET_ADMIN
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/pi-hole/graphics/master/Vortex/Vortex_with_text.png"
+      net.unraid.docker.webui: "http://[IP]:[PORT:80]/admin"
+      net.unraid.docker.shell: "bash"
+
+volumes:
+  pihole-etc:
+  pihole-dnsmasq:

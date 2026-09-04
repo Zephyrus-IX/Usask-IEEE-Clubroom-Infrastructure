@@ -11,7 +11,7 @@ Planned routes:
 | Hostname | Target |
 |---|---|
 | `finance.ieee.local` | Akaunting on host port `8081` |
-| `pihole.ieee.local` | Pi-hole admin UI, once deployed |
+| `pihole.ieee.local` | Pi-hole admin UI on host port `8082` |
 | `network.ieee.local` | NetAlertX, once deployed |
 | `dockhand.ieee.local` | Dockhand |
 | `pos.ieee.local` | IEEE POS app, once deployed |
@@ -68,7 +68,7 @@ This keeps each app stack independent. We can move to a shared Docker network la
 When a new stack is deployed:
 
 1. Confirm the service host port.
-2. Uncomment or add the matching route in `Caddyfile`.
+2. Add or update the matching route in `Caddyfile`.
 3. Commit and push the change.
 4. Sync/redeploy the Caddy stack in Dockhand.
 5. Add or update the matching Pi-hole local DNS record.

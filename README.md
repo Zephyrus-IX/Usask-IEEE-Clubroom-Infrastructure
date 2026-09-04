@@ -69,6 +69,10 @@ Dockhand itself is the bootstrap service. Everything else should be managed thro
 │   │   ├── Caddyfile
 │   │   ├── .env
 │   │   └── README.md
+│   ├── pihole/
+│   │   ├── compose.yaml
+│   │   ├── .env
+│   │   └── README.md
 │   └── canteen/
 │       └── README.md
 ├── inventory/
@@ -124,6 +128,8 @@ Initial goal:
 
 - DNS filtering
 - Local DNS records for `*.ieee.local` services
+- Web UI at `pihole.ieee.local` through Caddy
+- DNS trial on host port `5353` while host `dnsmasq` still owns LAN DHCP/DNS port `53`
 - Optional DHCP later, only after the base gateway is proven working
 
 Do not run host `dnsmasq` DHCP/DNS and Pi-hole DHCP/DNS on the same ports/interfaces at the same time.
