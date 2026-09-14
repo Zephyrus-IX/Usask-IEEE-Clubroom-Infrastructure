@@ -64,7 +64,7 @@ Dockhand itself is the bootstrap service. Everything else should be managed thro
 │   │   ├── compose.yaml
 │   │   ├── .env
 │   │   └── README.md
-│   ├── caddy/
+│   ├── ingress/
 │   │   ├── compose.yaml
 │   │   ├── Caddyfile
 │   │   ├── .env
@@ -103,22 +103,23 @@ Not every planned stack needs to exist immediately. Add each stack when it is re
 
 ## Planned Docker stacks
 
-### `caddy`
+### `ingress`
 
-Reverse proxy for clean local service URLs.
+Inbound access stack containing Caddy and Cloudflared.
 
-Planned routes:
+Caddy provides clean local `*.ieee.local` service URLs on the clubroom LAN:
 
 | Hostname | Target |
 |---|---|
-| `pos.ieee.local` | IEEE POS/canteen app |
 | `finance.ieee.local` | Akaunting |
 | `pihole.ieee.local` | Pi-hole admin UI |
 | `network.ieee.local` | NetAlertX |
 | `dockhand.ieee.local` | Dockhand |
 | `home.ieee.local` | Optional dashboard |
 
-Caddy is preferred over Nginx Proxy Manager for this deployment because the proxy configuration can be stored directly in Git and managed through Dockhand.
+Cloudflared provides Cloudflare Tunnel connectivity for public routes. The canteen/POS app is intentionally not given a local Caddy route here because it is intended to be exposed through Cloudflare Tunnel.
+
+Caddy is preferred over Nginx Proxy Manager for local reverse proxying because the proxy configuration can be stored directly in Git and managed through Dockhand.
 
 ### `pihole`
 
@@ -223,7 +224,7 @@ After Dockhand is reachable:
 Recommended order:
 
 ```text
-1. caddy
+1. ingress
 2. pihole
 3. netalertx
 4. akaunting
@@ -233,7 +234,7 @@ Recommended order:
 
 Reasoning:
 
-- Caddy gives clean URLs for later services.
+- Ingress gives clean local URLs through Caddy and public tunnel connectivity through Cloudflared.
 - Pi-hole provides local DNS records for those URLs.
 - NetAlertX is more useful once Pi-hole/local naming exists.
 - Akaunting and the IEEE POS app are user-facing apps and can be deployed after the base network layer.
@@ -245,7 +246,6 @@ In Pi-hole or the active DHCP/DNS system, create local DNS records for the plann
 Example:
 
 ```text
-pos.ieee.local       -> <server-ip>
 finance.ieee.local   -> <server-ip>
 pihole.ieee.local    -> <server-ip>
 network.ieee.local   -> <server-ip>
@@ -300,7 +300,7 @@ Do not clone this repository under `/opt/data`, `/tmp`, a home directory, or any
 - Prefer one app per Docker stack unless services are tightly dependent.
 - Group databases with the app that owns them.
 - Keep Dockhand as the manually bootstrapped control service.
-- Use Caddy for Git-tracked reverse proxy configuration.
+- Use the ingress stack for Git-tracked local Caddy routing and Cloudflare Tunnel connectivity.
 - Keep optional tools optional until the core system is stable.
 - Do not expose admin tools publicly without a deliberate security review.
 - Do not enable automatic image updates until the recovery/update process is documented.
@@ -311,7 +311,7 @@ Do not clone this repository under `/opt/data`, `/tmp`, a home directory, or any
 
 | Stack | Containers | Required | Purpose |
 |---|---|---:|---|
-| `caddy` | `caddy` | Yes | Reverse proxy and local service URLs |
+| `ingress` | `caddy`, `cloudflared` | Yes | Local reverse proxy and Cloudflare Tunnel connector |
 | `pihole` | `pihole` | Yes | DNS filtering and local DNS records |
 | `netalertx` | `netalertx` | Maybe | Network device discovery/visibility |
 | `akaunting` | `akaunting`, `akaunting-db` | Yes | Club finance/accounting trial |

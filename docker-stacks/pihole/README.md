@@ -42,7 +42,6 @@ After Pi-hole is running, add local DNS records pointing at the gateway/server L
 finance.ieee.local   -> 192.168.0.1
 pihole.ieee.local    -> 192.168.0.1
 dockhand.ieee.local  -> 192.168.0.1
-pos.ieee.local       -> 192.168.0.1
 network.ieee.local   -> 192.168.0.1
 home.ieee.local      -> 192.168.0.1
 ```

@@ -5,7 +5,7 @@ This file tracks intended and deployed services for the IEEE clubroom infrastruc
 | Service | Location | Status | Purpose |
 |---|---|---|---|
 | Dockhand | Manual bootstrap on host | Planned | Manage Docker Compose stacks from Git |
-| Caddy | `docker-stacks/caddy/` | Present | Reverse proxy/local URLs |
+| Ingress | `docker-stacks/ingress/` | Present | Caddy local reverse proxy and Cloudflared tunnel connector |
 | Akaunting | `docker-stacks/akaunting/` | Present | Finance/accounting trial |
 | Pi-hole | `docker-stacks/pihole/` | Present | DNS filtering/local DNS records; DHCP later only if deliberate |
 | NetAlertX | `docker-stacks/netalertx/` | Planned | Network device visibility |

@@ -20,10 +20,6 @@ dockhand.ieee.local {
 	reverse_proxy host.docker.internal:3000
 }
 
-pos.ieee.local {
-	reverse_proxy host.docker.internal:8000
-}
-
 home.ieee.local {
 	reverse_proxy host.docker.internal:8083
 }

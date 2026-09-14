@@ -22,7 +22,6 @@
 |---|---|---|
 | `dockhand.ieee.local` | gateway/server LAN IP | Docker stack management |
 | `finance.ieee.local` | gateway/server LAN IP | Akaunting |
-| `pos.ieee.local` | gateway/server LAN IP | Canteen/POS app |
 | `pihole.ieee.local` | gateway/server LAN IP | Pi-hole admin UI |
 | `network.ieee.local` | gateway/server LAN IP | Network visibility tools |
 | `home.ieee.local` | gateway/server LAN IP | Optional dashboard |
